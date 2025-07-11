@@ -2,7 +2,7 @@
 
 import { useState, memo, useRef, useCallback, useEffect } from "react";
 import { Note } from "@/types/note";
-import { X, User, Move } from "lucide-react";
+import { X, User, Move, Check } from "lucide-react";
 
 interface NoteCardProps {
   note: Note;
@@ -21,17 +21,20 @@ const NoteCard = memo(function NoteCard({
 }: NoteCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
+  const [isMoveMode, setIsMoveMode] = useState(false);
   const [position, setPosition] = useState({ x: note.x, y: note.y });
   const noteRef = useRef<HTMLDivElement>(null);
   const dragStartRef = useRef({ x: 0, y: 0, noteX: 0, noteY: 0 });
-  const hasMoved = useRef(false);
+  const containerClickListenerRef = useRef<((e: MouseEvent) => void) | null>(
+    null
+  );
 
-  // Update position when note prop changes (but not during drag)
+  // Update position when note prop changes (only if not in move mode or dragging)
   useEffect(() => {
-    if (!isDragging) {
+    if (!isDragging && !isMoveMode) {
       setPosition({ x: note.x, y: note.y });
     }
-  }, [note.x, note.y, isDragging]);
+  }, [note.x, note.y, isDragging, isMoveMode]);
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -46,24 +49,157 @@ const NoteCard = memo(function NoteCard({
     return containerRef.current.getBoundingClientRect();
   }, [containerRef]);
 
-  const startDrag = useCallback(
-    (clientX: number, clientY: number) => {
-      console.log(
-        "🎯 Starting drag for note:",
-        note.id,
-        "at position:",
-        position
+  const getBoundedPosition = useCallback(
+    (x: number, y: number) => {
+      const containerBounds = getContainerBounds();
+      if (!containerBounds) return { x, y };
+
+      const cardWidth = isMobile ? 160 : 200;
+      const cardHeight = isMobile ? 120 : 140;
+      const padding = 10;
+
+      const boundedX = Math.max(
+        padding,
+        Math.min(x, containerBounds.width - cardWidth - padding)
+      );
+      const boundedY = Math.max(
+        padding,
+        Math.min(y, containerBounds.height - cardHeight - padding)
       );
 
-      const containerBounds = getContainerBounds();
-      if (!containerBounds) {
-        console.log("❌ No container bounds");
-        return false;
+      return { x: boundedX, y: boundedY };
+    },
+    [isMobile, getContainerBounds]
+  );
+
+  // Exit move mode and save position
+  const exitMoveMode = useCallback(() => {
+    // console.log("🏁 Exiting move mode for note:", note.id);
+    setIsMoveMode(false);
+
+    // Remove container click listener
+    if (containerClickListenerRef.current && containerRef?.current) {
+      containerRef.current.removeEventListener(
+        "click",
+        containerClickListenerRef.current
+      );
+      containerRef.current.style.cursor = "";
+      containerClickListenerRef.current = null;
+    }
+
+    // Save position if it changed
+    if (onMove && (position.x !== note.x || position.y !== note.y)) {
+      // console.log("💾 Saving final position:", position);
+      onMove(note.id, position.x, position.y);
+    }
+  }, [position, note.id, note.x, note.y, onMove, containerRef]);
+
+  // Handle move mode toggle
+  const handleMoveToggle = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+
+      if (isMoveMode) {
+        exitMoveMode();
+      } else {
+        // Enter move mode
+        setIsMoveMode(true);
+        // console.log("🎯 Entering move mode for note:", note.id);
+
+        // Add container click listener
+        if (containerRef?.current) {
+          const handleContainerClick = (e: MouseEvent) => {
+            // Don't move if clicking on this note or its buttons
+            const target = e.target as HTMLElement;
+            if (target.closest(`[data-note-id="${note.id}"]`)) {
+              return;
+            }
+
+            const containerBounds =
+              containerRef.current!.getBoundingClientRect();
+            const clickX = e.clientX - containerBounds.left;
+            const clickY = e.clientY - containerBounds.top;
+
+            // Adjust for note center
+            const cardWidth = isMobile ? 160 : 200;
+            const cardHeight = isMobile ? 120 : 140;
+            const newX = clickX - cardWidth / 2;
+            const newY = clickY - cardHeight / 2;
+
+            const boundedPosition = getBoundedPosition(newX, newY);
+            setPosition(boundedPosition);
+
+            // console.log("📍 Moving note to clicked position:", boundedPosition);
+          };
+
+          containerClickListenerRef.current = handleContainerClick;
+          containerRef.current.addEventListener("click", handleContainerClick);
+          containerRef.current.style.cursor = "crosshair";
+        }
       }
+    },
+    [
+      isMoveMode,
+      exitMoveMode,
+      note.id,
+      containerRef,
+      isMobile,
+      getBoundedPosition,
+    ]
+  );
+
+  // Cleanup on unmount or when exiting move mode
+  useEffect(() => {
+    return () => {
+      if (containerClickListenerRef.current && containerRef?.current) {
+        containerRef.current.removeEventListener(
+          "click",
+          containerClickListenerRef.current
+        );
+        containerRef.current.style.cursor = "";
+      }
+    };
+  }, [containerRef]);
+
+  // Auto-exit move mode when clicking outside (escape hatch)
+  useEffect(() => {
+    if (isMoveMode) {
+      const handleEscape = (e: KeyboardEvent) => {
+        if (e.key === "Escape") {
+          exitMoveMode();
+        }
+      };
+
+      const handleClickOutside = (e: MouseEvent) => {
+        // If clicking outside the container, exit move mode
+        if (
+          containerRef?.current &&
+          !containerRef.current.contains(e.target as Node)
+        ) {
+          exitMoveMode();
+        }
+      };
+
+      document.addEventListener("keydown", handleEscape);
+      document.addEventListener("click", handleClickOutside);
+
+      return () => {
+        document.removeEventListener("keydown", handleEscape);
+        document.removeEventListener("click", handleClickOutside);
+      };
+    }
+  }, [isMoveMode, exitMoveMode, containerRef]);
+
+  // Traditional drag functionality (as fallback)
+  const startDrag = useCallback(
+    (clientX: number, clientY: number) => {
+      if (isMoveMode) return false; // Don't drag in move mode
+
+      const containerBounds = getContainerBounds();
+      if (!containerBounds) return false;
 
       setIsDragging(true);
-      hasMoved.current = false;
-
       dragStartRef.current = {
         x: clientX,
         y: clientY,
@@ -71,100 +207,58 @@ const NoteCard = memo(function NoteCard({
         noteY: position.y,
       };
 
-      // Add dragging class for visual feedback
       if (noteRef.current) {
         noteRef.current.classList.add("dragging");
       }
 
-      console.log("✅ Drag started successfully");
       return true;
     },
-    [position, getContainerBounds, note.id]
+    [position, getContainerBounds, isMoveMode]
   );
 
   const updateDrag = useCallback(
     (clientX: number, clientY: number) => {
-      if (!isDragging) return;
-
-      const containerBounds = getContainerBounds();
-      if (!containerBounds) return;
+      if (!isDragging || isMoveMode) return;
 
       const deltaX = clientX - dragStartRef.current.x;
       const deltaY = clientY - dragStartRef.current.y;
-
-      // Mark as moved with any movement (reduced threshold for more responsive dragging)
-      if (Math.abs(deltaX) > 1 || Math.abs(deltaY) > 1) {
-        hasMoved.current = true;
-      }
-
       const newX = dragStartRef.current.noteX + deltaX;
       const newY = dragStartRef.current.noteY + deltaY;
 
-      // Check bounds
-      const cardWidth = isMobile ? 160 : 200;
-      const cardHeight = isMobile ? 120 : 140;
-      const padding = 10;
-
-      const boundedX = Math.max(
-        padding,
-        Math.min(newX, containerBounds.width - cardWidth - padding)
-      );
-      const boundedY = Math.max(
-        padding,
-        Math.min(newY, containerBounds.height - cardHeight - padding)
-      );
-
-      setPosition({ x: boundedX, y: boundedY });
+      const boundedPosition = getBoundedPosition(newX, newY);
+      setPosition(boundedPosition);
     },
-    [isDragging, isMobile, getContainerBounds]
+    [isDragging, isMoveMode, getBoundedPosition]
   );
 
   const endDrag = useCallback(() => {
     if (!isDragging) return;
 
-    console.log(
-      "🏁 Ending drag for note:",
-      note.id,
-      "moved:",
-      hasMoved.current,
-      "final position:",
-      position
-    );
-
     setIsDragging(false);
 
-    // Remove dragging class
     if (noteRef.current) {
       noteRef.current.classList.remove("dragging");
     }
 
-    // Only call onMove if the note actually moved significantly
-    if (hasMoved.current && onMove) {
-      console.log("💾 Saving new position:", position);
+    // Save position if it changed significantly
+    const deltaX = Math.abs(position.x - note.x);
+    const deltaY = Math.abs(position.y - note.y);
+
+    if ((deltaX > 5 || deltaY > 5) && onMove) {
+      // console.log("💾 Saving dragged position:", position);
       onMove(note.id, position.x, position.y);
-    } else {
-      console.log("↩️ No significant movement, keeping original position");
-      // Don't revert position here - let the parent component handle it
     }
+  }, [isDragging, position, note.id, note.x, note.y, onMove]);
 
-    hasMoved.current = false;
-  }, [isDragging, position, note.id, onMove]);
-
-  // Mouse events
+  // Mouse events for traditional drag
   const handleMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      console.log("🖱️ Mouse down on note:", note.id);
-
-      // Don't start drag if clicking on delete button
-      if ((e.target as HTMLElement).closest("button")) {
-        console.log("❌ Clicked on button, not starting drag");
-        return;
-      }
+      if (isMoveMode) return; // Don't handle mouse down in move mode
+      if ((e.target as HTMLElement).closest("button")) return;
 
       e.preventDefault();
       e.stopPropagation();
 
-      // Start drag immediately on mouse down
       if (startDrag(e.clientX, e.clientY)) {
         const handleMouseMove = (e: MouseEvent) => {
           e.preventDefault();
@@ -172,36 +266,31 @@ const NoteCard = memo(function NoteCard({
         };
 
         const handleMouseUp = (e: MouseEvent) => {
-          console.log("🖱️ Mouse up, ending drag");
           e.preventDefault();
           document.removeEventListener("mousemove", handleMouseMove);
           document.removeEventListener("mouseup", handleMouseUp);
           endDrag();
         };
 
-        document.addEventListener("mousemove", handleMouseMove, { passive: false });
+        document.addEventListener("mousemove", handleMouseMove, {
+          passive: false,
+        });
         document.addEventListener("mouseup", handleMouseUp, { passive: false });
       }
     },
-    [startDrag, updateDrag, endDrag, note.id]
+    [startDrag, updateDrag, endDrag, isMoveMode]
   );
 
-  // Touch events - Fixed to not use passive listeners
+  // Touch events for traditional drag
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
-      console.log("👆 Touch start on note:", note.id);
-
-      // Don't start drag if touching delete button
-      if ((e.target as HTMLElement).closest("button")) {
-        console.log("❌ Touched button, not starting drag");
-        return;
-      }
+      if (isMoveMode) return; // Don't handle touch in move mode
+      if ((e.target as HTMLElement).closest("button")) return;
 
       e.preventDefault();
       e.stopPropagation();
 
       const touch = e.touches[0];
-      // Start drag immediately on touch start
       if (startDrag(touch.clientX, touch.clientY)) {
         const handleTouchMove = (e: TouchEvent) => {
           e.preventDefault();
@@ -212,19 +301,21 @@ const NoteCard = memo(function NoteCard({
         };
 
         const handleTouchEnd = (e: TouchEvent) => {
-          console.log("👆 Touch end, ending drag");
           e.preventDefault();
           document.removeEventListener("touchmove", handleTouchMove);
           document.removeEventListener("touchend", handleTouchEnd);
           endDrag();
         };
 
-        // Add explicit passive: false to ensure preventDefault works
-        document.addEventListener("touchmove", handleTouchMove, { passive: false });
-        document.addEventListener("touchend", handleTouchEnd, { passive: false });
+        document.addEventListener("touchmove", handleTouchMove, {
+          passive: false,
+        });
+        document.addEventListener("touchend", handleTouchEnd, {
+          passive: false,
+        });
       }
     },
-    [startDrag, updateDrag, endDrag, note.id]
+    [startDrag, updateDrag, endDrag, isMoveMode]
   );
 
   const noteStyle = {
@@ -232,21 +323,23 @@ const NoteCard = memo(function NoteCard({
     top: `${position.y}px`,
     transform: `rotate(${note.rotation}deg)`,
     transformOrigin: "center center",
-    zIndex: isDragging ? 1000 : isHovered ? 20 : 10,
-    cursor: isDragging ? "grabbing" : "grab",
+    zIndex: isDragging || isMoveMode ? 1000 : isHovered ? 20 : 10,
+    cursor: isMoveMode ? "move" : isDragging ? "grabbing" : "grab",
     userSelect: "none" as const,
     WebkitUserSelect: "none" as const,
     MozUserSelect: "none" as const,
     msUserSelect: "none" as const,
+    transition: isDragging || isMoveMode ? "none" : "all 0.2s ease-out",
   };
 
   return (
     <div
       ref={noteRef}
+      data-note-id={note.id} // Add data attribute for identification
       className={`absolute select-none transition-all duration-200 ease-out
                   ${isMobile ? "w-40 min-h-[120px]" : "w-48 min-h-[140px]"}
                   ${
-                    isDragging
+                    isDragging || isMoveMode
                       ? "scale-105 shadow-2xl"
                       : isHovered
                       ? "scale-105"
@@ -265,7 +358,7 @@ const NoteCard = memo(function NoteCard({
                     ${note.color}
                     shadow-lg transition-all duration-300
                     ${
-                      isDragging
+                      isDragging || isMoveMode
                         ? "shadow-2xl ring-2 ring-blue-400/50"
                         : isHovered
                         ? "shadow-xl"
@@ -276,21 +369,33 @@ const NoteCard = memo(function NoteCard({
                     after:absolute after:inset-0 after:rounded-lg after:shadow-inner 
                     after:pointer-events-none`}
       >
-        {/* Drag Handle */}
-        <div
-          className={`absolute top-1 left-1/2 -translate-x-1/2 w-8 h-1 bg-gray-400/50 rounded-full
-                      ${isHovered || isDragging ? "opacity-100" : "opacity-0"}
-                      transition-opacity duration-200 pointer-events-none`}
-        />
-
-        {/* Move Icon */}
-        <div
-          className={`absolute top-1 left-1 text-gray-500/70 pointer-events-none
-                      ${isHovered || isDragging ? "opacity-100" : "opacity-0"}
-                      transition-opacity duration-200`}
+        {/* Move Button */}
+        <button
+          onClick={handleMoveToggle}
+          className={`absolute top-1 left-1 w-6 h-6 rounded-full flex items-center justify-center
+                      transition-all duration-200 z-30
+                      ${
+                        isMoveMode
+                          ? "bg-blue-500 hover:bg-blue-600 text-white shadow-lg animate-pulse"
+                          : "bg-gray-500/70 hover:bg-gray-600/80 text-white/80"
+                      }
+                      ${
+                        isHovered || isMobile || isDragging || isMoveMode
+                          ? "opacity-100"
+                          : "opacity-0"
+                      }
+                      hover:scale-110`}
+          aria-label={isMoveMode ? "Exit move mode" : "Enter move mode"}
+          title={
+            isMoveMode ? "Click to finish moving" : "Click to move this note"
+          }
         >
-          <Move size={isMobile ? 12 : 14} />
-        </div>
+          {isMoveMode ? (
+            <Check size={isMobile ? 10 : 12} />
+          ) : (
+            <Move size={isMobile ? 10 : 12} />
+          )}
+        </button>
 
         {/* Delete Button */}
         <button
@@ -299,7 +404,7 @@ const NoteCard = memo(function NoteCard({
                       text-white rounded-full flex items-center justify-center
                       shadow-lg hover:shadow-xl transition-all duration-200
                       ${
-                        isHovered || isMobile || isDragging
+                        isHovered || isMobile || isDragging || isMoveMode
                           ? "opacity-100"
                           : "opacity-0"
                       }
@@ -343,9 +448,18 @@ const NoteCard = memo(function NoteCard({
           <div className="absolute top-16 left-3 right-3 h-px bg-gray-400" />
         </div>
 
+        {/* Move mode indicator */}
+        {isMoveMode && (
+          <div className="absolute inset-0 rounded-lg border-2 border-blue-400/50 pointer-events-none animate-pulse">
+            <div className="absolute -top-8 left-1/2 -translate-x-1/2 bg-blue-500 text-white text-xs px-2 py-1 rounded whitespace-nowrap">
+              Click anywhere to move here • Press ESC to cancel
+            </div>
+          </div>
+        )}
+
         {/* Dragging indicator */}
         {isDragging && (
-          <div className="absolute inset-0 rounded-lg border-2 border-blue-400/50 pointer-events-none animate-pulse" />
+          <div className="absolute inset-0 rounded-lg border-2 border-green-400/50 pointer-events-none animate-pulse" />
         )}
       </div>
     </div>

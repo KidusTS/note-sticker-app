@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
@@ -23,12 +23,15 @@ export const metadata: Metadata = {
     address: false,
     telephone: false,
   },
-  viewport: {
-    width: "device-width",
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
+  // Removed viewport and themeColor from here
+};
+
+// New separate viewport export
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
   themeColor: [
     { media: "(prefers-color-scheme: light)", color: "#ffffff" },
     { media: "(prefers-color-scheme: dark)", color: "#1f2937" },
@@ -52,7 +55,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="Note Stickers" />
         <meta name="application-name" content="Note Stickers" />
         <meta name="msapplication-TileColor" content="#1f2937" />
-        <meta name="theme-color" content="#1f2937" />
+        {/* Removed duplicate theme-color meta tag since it's now in viewport export */}
       </head>
       <body className={`${inter.className} antialiased`}>
         <ErrorBoundary>{children}</ErrorBoundary>

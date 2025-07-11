@@ -8,6 +8,8 @@ import {
   getRandomColor,
   clearOccupiedPositions,
   redistributeNotes,
+  updateNotePosition,
+  removeNotePosition,
 } from "@/utils/noteUtils";
 import { containsProfanity, cleanText } from "@/utils/profanityFilter";
 import { supabase, isSupabaseConfigured, type NewNote } from "@/lib/supabase";
@@ -47,6 +49,7 @@ export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
+  const pendingUpdates = useRef<Set<string>>(new Set()); // Track pending position updates
 
   // Check if device is mobile
   useEffect(() => {
@@ -72,10 +75,15 @@ export default function Home() {
         if (widthDiff > 50 || heightDiff > 50) {
           setContainerDimensions({ width: newWidth, height: newHeight });
 
-          if (notes.length > 0 && !isInitialLoad.current) {
-            console.log(
-              "📐 Container resized significantly, redistributing notes..."
-            );
+          // Only redistribute if it's a significant change and not initial load
+          if (
+            notes.length > 0 &&
+            !isInitialLoad.current &&
+            (widthDiff > 100 || heightDiff > 100)
+          ) {
+            // console.log(
+            //   "📐 Container resized significantly, redistributing notes..."
+            // );
             const redistributedNotes = redistributeNotes(
               notes,
               newWidth,
@@ -123,17 +131,29 @@ export default function Home() {
     }
   };
 
-  // Handle note movement
+  // Improved note movement handler - now returns a Promise
   const handleNoteMove = useCallback(
-    async (id: string, x: number, y: number) => {
-      console.log("📍 Moving note:", id, "to position:", { x, y });
+    async (id: string, x: number, y: number): Promise<void> => {
+      // console.log("📍 Moving note:", id, "to position:", { x, y });
+
+      // Prevent duplicate updates
+      if (pendingUpdates.current.has(id)) {
+        // console.log("⏳ Update already pending for note:", id);
+        return;
+      }
 
       // Update local state immediately for smooth UX
-      setNotes((prev) => {
-        const updatedNotes = prev.map((note) =>
+      setNotes((prevNotes) => {
+        const updatedNotes = prevNotes.map((note) =>
           note.id === id ? { ...note, x, y } : note
         );
-        console.log("🔄 Updated local state for note:", id);
+
+        // Update position tracking
+        const isMobile = containerDimensions.width < 768;
+        const cardWidth = isMobile ? 160 : 200;
+        const cardHeight = isMobile ? 120 : 140;
+        updateNotePosition(id, x, y, cardWidth, cardHeight);
+
         return updatedNotes;
       });
 
@@ -144,7 +164,7 @@ export default function Home() {
         connectionStatus === "connected"
       ) {
         try {
-          console.log("💾 Saving to database...");
+          pendingUpdates.current.add(id);
 
           const { error } = await supabase
             .from("notes")
@@ -155,21 +175,27 @@ export default function Home() {
             console.error("❌ Error updating note position:", error);
             setError("Failed to save note position. Please try again.");
             setTimeout(() => setError(""), 3000);
+            throw error; // Re-throw to let the component handle the error
           } else {
-            console.log("✅ Note position saved successfully");
+            // console.log("✅ Note position saved successfully");
           }
         } catch (error) {
           console.error("❌ Error updating note position:", error);
           setError("Failed to save note position.");
           setTimeout(() => setError(""), 3000);
+          throw error; // Re-throw to let the component handle the error
+        } finally {
+          pendingUpdates.current.delete(id);
         }
       } else {
-        console.log(
-          "⚠️ Not connected to database, position only saved locally"
-        );
+        // console.log(
+        //   "⚠️ Not connected to database, position only saved locally"
+        // );
+        // Simulate a small delay even for local-only updates
+        await new Promise((resolve) => setTimeout(resolve, 200));
       }
     },
-    [connectionStatus]
+    [connectionStatus, containerDimensions.width]
   );
 
   // Check Supabase connection
@@ -195,7 +221,7 @@ export default function Home() {
           setError(`Database connection failed: ${error.message}`);
         } else {
           setConnectionStatus("connected");
-          console.log("✅ Supabase connected successfully");
+          // console.log("✅ Supabase connected successfully");
         }
       } catch (err) {
         console.error("Connection test failed:", err);
@@ -221,7 +247,7 @@ export default function Home() {
     }
 
     try {
-      console.log("🔄 Loading notes from Supabase...");
+      // console.log("🔄 Loading notes from Supabase...");
 
       const { data, error } = await supabase
         .from("notes")
@@ -234,18 +260,30 @@ export default function Home() {
         throw error;
       }
 
-      console.log("✅ Notes loaded successfully:", data?.length || 0, "notes");
+      // console.log("✅ Notes loaded successfully:", data?.length || 0, "notes");
 
-      if (data && data.length > 0 && containerRef.current) {
-        const containerWidth = containerRef.current.offsetWidth;
-        const containerHeight = containerRef.current.offsetHeight;
+      // Set notes directly without redistribution on initial load
+      if (data) {
+        setNotes(data);
 
-        setContainerDimensions({
-          width: containerWidth,
-          height: containerHeight,
-        });
-      } else {
-        setNotes(data || []);
+        // Update position tracking for loaded notes
+        if (containerRef.current) {
+          const containerWidth = containerRef.current.offsetWidth;
+          const containerHeight = containerRef.current.offsetHeight;
+          const isMobile = containerWidth < 768;
+          const cardWidth = isMobile ? 160 : 200;
+          const cardHeight = isMobile ? 120 : 140;
+
+          clearOccupiedPositions();
+          data.forEach((note) => {
+            updateNotePosition(note.id, note.x, note.y, cardWidth, cardHeight);
+          });
+
+          setContainerDimensions({
+            width: containerWidth,
+            height: containerHeight,
+          });
+        }
       }
 
       isInitialLoad.current = false;
@@ -267,7 +305,7 @@ export default function Home() {
     if (connectionStatus === "connected" && supabase) {
       loadNotes();
 
-      console.log("🔄 Setting up real-time subscription...");
+      // console.log("🔄 Setting up real-time subscription...");
 
       const channel = supabase
         .channel("notes-changes")
@@ -279,13 +317,26 @@ export default function Home() {
             table: "notes",
           },
           (payload) => {
-            console.log("✅ New note received:", payload.new);
+            // console.log("✅ New note received:", payload.new);
             const newNote = payload.new as Note;
 
             setNotes((prev: Note[]) => {
               if (prev.some((note) => note.id === newNote.id)) {
                 return prev;
               }
+
+              // Update position tracking for new note
+              const isMobile = containerDimensions.width < 768;
+              const cardWidth = isMobile ? 160 : 200;
+              const cardHeight = isMobile ? 120 : 140;
+              updateNotePosition(
+                newNote.id,
+                newNote.x,
+                newNote.y,
+                cardWidth,
+                cardHeight
+              );
+
               return [newNote, ...prev.slice(0, 99)];
             });
           }
@@ -298,10 +349,15 @@ export default function Home() {
             table: "notes",
           },
           (payload) => {
-            console.log("🗑️ Note deleted:", payload.old);
+            // console.log("🗑️ Note deleted:", payload.old);
+            const deletedId = payload.old.id;
+
             setNotes((prev: Note[]) =>
-              prev.filter((note) => note.id !== payload.old.id)
+              prev.filter((note) => note.id !== deletedId)
             );
+
+            // Remove from position tracking
+            removeNotePosition(deletedId);
           }
         )
         .on(
@@ -312,27 +368,43 @@ export default function Home() {
             table: "notes",
           },
           (payload) => {
-            console.log("📝 Note updated:", payload.new);
+            // console.log("📝 Note updated:", payload.new);
             const updatedNote = payload.new as Note;
-            setNotes((prev: Note[]) =>
-              prev.map((note) =>
-                note.id === updatedNote.id ? updatedNote : note
-              )
-            );
+
+            // Only update if this update is not from our own pending update
+            if (!pendingUpdates.current.has(updatedNote.id)) {
+              setNotes((prev: Note[]) =>
+                prev.map((note) =>
+                  note.id === updatedNote.id ? updatedNote : note
+                )
+              );
+
+              // Update position tracking
+              const isMobile = containerDimensions.width < 768;
+              const cardWidth = isMobile ? 160 : 200;
+              const cardHeight = isMobile ? 120 : 140;
+              updateNotePosition(
+                updatedNote.id,
+                updatedNote.x,
+                updatedNote.y,
+                cardWidth,
+                cardHeight
+              );
+            }
           }
         )
         .subscribe((status) => {
-          console.log("📡 Subscription status:", status);
+          // console.log("📡 Subscription status:", status);
         });
 
       return () => {
-        console.log("🔌 Cleaning up subscription...");
+        // console.log("🔌 Cleaning up subscription...");
         if (supabase) {
           supabase.removeChannel(channel);
         }
       };
     }
-  }, [loadNotes, connectionStatus]);
+  }, [loadNotes, connectionStatus, containerDimensions.width]);
 
   // Check scroll buttons when notes change
   useEffect(() => {
@@ -435,7 +507,7 @@ export default function Home() {
         color: getRandomColor(),
       };
 
-      console.log("📝 Submitting note:", newNote);
+      // console.log("📝 Submitting note:", newNote);
 
       // Insert into Supabase
       const { data, error } = await supabase
@@ -449,7 +521,7 @@ export default function Home() {
         throw error;
       }
 
-      console.log("✅ Note inserted successfully:", data);
+      // console.log("✅ Note inserted successfully:", data);
 
       // Update last submission time
       setLastSubmissionTime(currentTime);
@@ -483,7 +555,7 @@ export default function Home() {
     }
 
     try {
-      console.log("🗑️ Deleting note:", id);
+      // console.log("🗑️ Deleting note:", id);
 
       const { error } = await supabase.from("notes").delete().eq("id", id);
 
@@ -492,7 +564,7 @@ export default function Home() {
         throw error;
       }
 
-      console.log("✅ Note deleted successfully");
+      // console.log("✅ Note deleted successfully");
     } catch (error) {
       console.error("❌ Error deleting note:", error);
       setError(
@@ -507,6 +579,7 @@ export default function Home() {
     setIsLoading(true);
     setError("");
     clearOccupiedPositions();
+    pendingUpdates.current.clear();
     isInitialLoad.current = true;
     loadNotes();
   };
@@ -557,7 +630,7 @@ export default function Home() {
             Amharic.
             <span className="text-purple-300">
               {" "}
-              • Drag notes to move them around!
+              • Click the move icon to reposition notes!
             </span>
           </p>
 
@@ -587,7 +660,6 @@ export default function Home() {
                 </>
               )}
             </div>
-
             <button
               onClick={handleRefresh}
               disabled={connectionStatus !== "connected"}
@@ -730,7 +802,7 @@ export default function Home() {
               className="bg-gray-800/90 text-gray-300 text-xs px-3 py-1 rounded-full
                             backdrop-blur-sm border border-gray-600/50 animate-pulse"
             >
-              ← Scroll to see more notes • Drag notes to move them →
+              ← Scroll to see more notes • Click move icon to reposition →
             </div>
           </div>
         )}
@@ -881,8 +953,8 @@ export default function Home() {
             {isMobile && (
               <div className="mt-4 p-3 bg-gray-700/30 rounded-lg border border-gray-600/50">
                 <p className="text-xs text-gray-400 text-center">
-                  💡 Tip: Tap and hold notes to move them • Swipe left/right to
-                  see more notes
+                  💡 Tip: Tap the move icon (↗️) on notes to reposition them •
+                  Swipe left/right to see more notes
                 </p>
               </div>
             )}
@@ -891,8 +963,8 @@ export default function Home() {
             {!isMobile && (
               <div className="mt-4 p-3 bg-gray-700/30 rounded-lg border border-gray-600/50">
                 <p className="text-xs text-gray-400 text-center">
-                  💡 Tip: Click and drag notes to move them around • Hover over
-                  notes to see controls
+                  💡 Tip: Click the move icon (↗️) on notes to enter move mode,
+                  then click anywhere to reposition
                 </p>
               </div>
             )}

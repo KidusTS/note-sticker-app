@@ -25,7 +25,7 @@ let occupiedPositions: Array<{
 // Clear occupied positions (call this when loading new notes)
 export function clearOccupiedPositions() {
   occupiedPositions = [];
-  console.log('🧹 Cleared occupied positions');
+  // console.log('🧹 Cleared occupied positions');
 }
 
 // Update a note's position in the tracking system
@@ -34,17 +34,15 @@ export function updateNotePosition(id: string, x: number, y: number, width: numb
   
   if (existingIndex >= 0) {
     occupiedPositions[existingIndex] = { id, x, y, width, height };
-    console.log('📍 Updated position for note:', id, { x, y });
   } else {
     occupiedPositions.push({ id, x, y, width, height });
-    console.log('📍 Added new position for note:', id, { x, y });
   }
 }
 
 // Remove a note from position tracking
 export function removeNotePosition(id: string) {
   occupiedPositions = occupiedPositions.filter(pos => pos.id !== id);
-  console.log('🗑️ Removed position tracking for note:', id);
+  // console.log('🗑️ Removed position tracking for note:', id);
 }
 
 // Check if a position overlaps with existing notes (excluding a specific note)
@@ -101,24 +99,22 @@ export function generateRandomPosition(containerWidth: number, containerHeight: 
   const maxY = Math.max(containerHeight - cardHeight - padding, 0);
   
   let attempts = 0;
-  const maxAttempts = 50;
+  const maxAttempts = 30; // Reduced attempts for better performance
   
   while (attempts < maxAttempts) {
     const x = Math.random() * maxX;
     const y = Math.random() * maxY;
     
     if (!isPositionOccupied(x, y, cardWidth, cardHeight, excludeId)) {
-      console.log('✅ Found non-overlapping position:', { x, y });
       return { x, y };
     }
     
     attempts++;
   }
   
-  // If we can't find a non-overlapping position, place it anyway but try to minimize overlap
+  // If we can't find a non-overlapping position, place it anyway
   const x = Math.random() * maxX;
   const y = Math.random() * maxY;
-  console.log('⚠️ Using potentially overlapping position after', maxAttempts, 'attempts:', { x, y });
   
   return { x, y };
 }
@@ -133,20 +129,16 @@ export function generatePositionForExistingNote(
   const cardWidth = isMobile ? 160 : 200;
   const cardHeight = isMobile ? 120 : 140;
   
-  // If note already has valid position, use it but adjust if needed
+  // If note already has valid position, use it
   if (note.x >= 0 && note.y >= 0 && 
       isWithinBounds(note.x, note.y, cardWidth, cardHeight, containerWidth, containerHeight)) {
     
-    // Check if this position overlaps with already placed notes
-    if (!isPositionOccupied(note.x, note.y, cardWidth, cardHeight, note.id)) {
-      addOccupiedPosition(note.id, note.x, note.y, cardWidth, cardHeight);
-      console.log('✅ Using existing valid position for note:', note.id, { x: note.x, y: note.y });
-      return { x: note.x, y: note.y };
-    }
+    // Always use the existing position from database
+    addOccupiedPosition(note.id, note.x, note.y, cardWidth, cardHeight);
+    return { x: note.x, y: note.y };
   }
   
-  // Generate new position if original is invalid or overlapping
-  console.log('🔄 Generating new position for note:', note.id);
+  // Generate new position if original is invalid
   const newPosition = generateRandomPosition(containerWidth, containerHeight, note.id);
   addOccupiedPosition(note.id, newPosition.x, newPosition.y, cardWidth, cardHeight);
   return newPosition;
@@ -180,9 +172,9 @@ export function createNote(
   };
 }
 
-// Utility to redistribute notes when container size changes
+// Simplified redistribution - only when absolutely necessary
 export function redistributeNotes(notes: Note[], containerWidth: number, containerHeight: number): Note[] {
-  console.log('🔄 Redistributing', notes.length, 'notes for container:', { containerWidth, containerHeight });
+  // console.log('🔄 Redistributing', notes.length, 'notes for container:', { containerWidth, containerHeight });
   clearOccupiedPositions();
   
   return notes.map((note) => {
