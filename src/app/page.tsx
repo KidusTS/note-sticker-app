@@ -392,10 +392,7 @@ export default function Home() {
               );
             }
           }
-        )
-        .subscribe((status) => {
-          // console.log("📡 Subscription status:", status);
-        });
+        );
 
       return () => {
         // console.log("🔌 Cleaning up subscription...");
@@ -510,7 +507,7 @@ export default function Home() {
       // console.log("📝 Submitting note:", newNote);
 
       // Insert into Supabase
-      const { data, error } = await supabase
+      const { error } = await supabase
         .from("notes")
         .insert([newNote])
         .select()

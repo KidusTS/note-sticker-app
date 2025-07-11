@@ -1,74 +1,59 @@
-# Note Sticker App
+# Setup Instructions for Note Stickers
 
-A modern, real-time note-sharing application where users can create and share sticky notes that appear on a shared digital wall. Built with Next.js 15, React 19, and Supabase.
+## 1. Supabase Setup (Recommended - Free Tier)
 
-## Features
+### Create Supabase Project
 
-- **Real-time collaboration**: Notes appear instantly for all users
-- **Improved drag and drop**: Notes now move immediately on grab/hold - no double-click needed
-- **Responsive design**: Works on both desktop and mobile
-- **Profanity filtering**: Automatic content moderation
-- **Beautiful animations**: Smooth transitions and effects
-- **Persistent storage**: Notes are saved to a database
-- **Security hardened**: Rate limiting, input validation, and security headers
-- **Vercel-ready**: Optimized for deployment with proper configuration
+1. Go to [supabase.com](https://supabase.com)
+2. Create a new project
+3. Wait for the database to be ready
 
-## Getting Started
+### Create Notes Table
 
-First, run the development server:
+### Environment Variables
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
-
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-## Environment Variables
-
-Create a `.env.local` file in the root directory and add your Supabase credentials:
+Add these to your `.env.local`:
 
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url_here
-NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
+NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
 ```
 
-## Security Features
+## 2. Vercel Deployment
 
-- **Rate limiting**: 5-second cooldown between note submissions
-- **Input validation**: Enhanced content validation and sanitization
-- **Security headers**: X-Frame-Options, X-Content-Type-Options, Referrer-Policy
-- **Content moderation**: Profanity filtering for appropriate content
-- **Error handling**: Graceful error handling and user feedback
+### Deploy to Vercel
 
-## Deployment
+1. Push your code to GitHub
+2. Connect your GitHub repo to Vercel
+3. Add environment variables in Vercel dashboard
+4. Deploy!
 
-The app is fully configured for Vercel deployment with:
-- Optimized build configuration
-- Security headers
-- Performance optimizations
-- Production-ready error handling
+### Environment Variables in Vercel
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- `NEXT_PUBLIC_SUPABASE_URL`
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+
+## 3. Alternative Storage Options
+
+## 4. Features Included
+
+✅ **Responsive Design**: Works on mobile, tablet, and desktop
+✅ **Dark Theme**: Modern dark UI throughout
+✅ **Real-time Updates**: See new notes instantly
+✅ **Global Sharing**: Notes visible to all visitors
+✅ **Profanity Filter**: Content moderation
+✅ **Touch-friendly**: Optimized for mobile devices
+✅ **Accessibility**: Screen reader friendly
+✅ **Error Handling**: Graceful error boundaries
+✅ **Loading States**: Smooth user experience
+✅ **PWA Ready**: Can be installed as an app
+
+## 5. Mobile Optimizations
+
+- Touch-friendly button sizes (44px minimum)
+- Responsive text sizing
+- Optimized note positioning for small screens
+- Reduced animations on mobile
+- Safe area insets for devices with notches
+- Prevents zoom on input focus
+- Dynamic viewport height support

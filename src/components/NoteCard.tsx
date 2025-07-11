@@ -172,11 +172,9 @@ const NoteCard = memo(function NoteCard({
       };
 
       const handleClickOutside = (e: MouseEvent) => {
-        // If clicking outside the container, exit move mode
-        if (
-          containerRef?.current &&
-          !containerRef.current.contains(e.target as Node)
-        ) {
+        // Copy containerRef.current to avoid stale closure
+        const container = containerRef?.current;
+        if (container && !container.contains(e.target as Node)) {
           exitMoveMode();
         }
       };
