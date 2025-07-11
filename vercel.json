@@ -6,11 +6,6 @@
     }
   ],
   "regions": ["iad1"],
-  "functions": {
-    "src/app/**/*.{js,ts,jsx,tsx}": {
-      "maxDuration": 30
-    }
-  },
   "headers": [
     {
       "source": "/(.*)",
