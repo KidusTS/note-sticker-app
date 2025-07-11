@@ -20,8 +20,6 @@ import {
   Heart,
   RefreshCw,
   Loader2,
-  Moon,
-  Wifi,
   WifiOff,
   ArrowLeft,
   ArrowRight,
@@ -609,54 +607,20 @@ export default function Home() {
       <header className="bg-gray-800/90 backdrop-blur-sm shadow-lg border-b border-gray-700">
         <div className="max-w-6xl mx-auto px-3 sm:px-4 md:px-6 py-4 sm:py-6 md:py-8 text-center">
           <div className="flex items-center justify-center gap-2 sm:gap-3 mb-2 sm:mb-4">
-            <Moon className="text-purple-400" size={isMobile ? 20 : 28} />
-            <h1 className="text-xl sm:text-2xl md:text-3xl lg:text-4xl font-bold text-white">
+            <h1 className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-blue-300 to-blue-600 drop-shadow-lg animate-pulse">
               Note Stickers
             </h1>
-            <Heart className="text-pink-400" size={isMobile ? 20 : 28} />
           </div>
 
           <p className="text-xs sm:text-sm md:text-base lg:text-lg text-gray-300 leading-relaxed px-2 sm:px-4">
-            Share your thoughts, quotes, and inspiration with the world! Write a
-            note and watch it appear as a beautiful sticky note on our global
-            wall.
-          </p>
-
-          <p className="text-xs text-gray-400 mt-2">
-            All notes are moderated for appropriate content in English and
-            Amharic.
-            <span className="text-purple-300">
-              {" "}
-              • Click the move icon to reposition notes!
-            </span>
+            Share your thoughts, quotes, and inspiration with the world!
           </p>
 
           <div className="mt-3 sm:mt-4 flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-4">
-            <span className="text-xs sm:text-sm text-gray-300 bg-gray-700/50 px-3 py-1 rounded-full">
-              {notes.length} notes shared globally
-            </span>
-
-            {/* Connection Status */}
-            <div
-              className={`inline-flex items-center gap-1 text-xs sm:text-sm px-3 py-1 rounded-full
-                           ${
-                             connectionStatus === "connected"
-                               ? "text-green-400 bg-green-900/30"
-                               : "text-red-400 bg-red-900/30"
-                           }`}
-            >
-              {connectionStatus === "connected" ? (
-                <>
-                  <Wifi size={12} />
-                  Connected
-                </>
-              ) : (
-                <>
-                  <WifiOff size={12} />
-                  Disconnected
-                </>
-              )}
-            </div>
+            <p className="text-xs text-gray-400 mt-2">
+              All notes are moderated for appropriate content in English and
+              Amharic.
+            </p>
             <button
               onClick={handleRefresh}
               disabled={connectionStatus !== "connected"}
