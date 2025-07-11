@@ -138,7 +138,11 @@ export default function Home() {
       });
 
       // Update database if connected
-      if (isSupabaseConfigured && connectionStatus === "connected") {
+      if (
+        isSupabaseConfigured &&
+        supabase &&
+        connectionStatus === "connected"
+      ) {
         try {
           console.log("💾 Saving to database...");
 
@@ -171,7 +175,7 @@ export default function Home() {
   // Check Supabase connection
   useEffect(() => {
     const checkConnection = async () => {
-      if (!isSupabaseConfigured) {
+      if (!isSupabaseConfigured || !supabase) {
         setConnectionStatus("disconnected");
         setError(
           "Supabase is not configured. Please check your environment variables."
@@ -207,7 +211,11 @@ export default function Home() {
 
   // Load notes from Supabase
   const loadNotes = useCallback(async () => {
-    if (!isSupabaseConfigured || connectionStatus !== "connected") {
+    if (
+      !isSupabaseConfigured ||
+      !supabase ||
+      connectionStatus !== "connected"
+    ) {
       setIsLoading(false);
       return;
     }
@@ -232,12 +240,6 @@ export default function Home() {
         const containerWidth = containerRef.current.offsetWidth;
         const containerHeight = containerRef.current.offsetHeight;
 
-        // const initializedNotes = initializeNotePositions(
-        //   data,
-        //   containerWidth,
-        //   containerHeight
-        // );
-        // setNotes(initializedNotes);
         setContainerDimensions({
           width: containerWidth,
           height: containerHeight,
@@ -250,7 +252,11 @@ export default function Home() {
       setError("");
     } catch (error) {
       console.error("❌ Error loading notes:", error);
-      setError(`Failed to load notes: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setError(
+        `Failed to load notes: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     } finally {
       setIsLoading(false);
     }
@@ -258,7 +264,7 @@ export default function Home() {
 
   // Subscribe to real-time updates
   useEffect(() => {
-    if (connectionStatus === "connected") {
+    if (connectionStatus === "connected" && supabase) {
       loadNotes();
 
       console.log("🔄 Setting up real-time subscription...");
@@ -321,7 +327,9 @@ export default function Home() {
 
       return () => {
         console.log("🔌 Cleaning up subscription...");
-        supabase.removeChannel(channel);
+        if (supabase) {
+          supabase.removeChannel(channel);
+        }
       };
     }
   }, [loadNotes, connectionStatus]);
@@ -343,10 +351,14 @@ export default function Home() {
       const currentTime = Date.now();
       const timeSinceLastSubmission = currentTime - lastSubmissionTime;
       const minInterval = 5000; // 5 seconds between submissions
-      
+
       if (timeSinceLastSubmission < minInterval) {
-        const waitTime = Math.ceil((minInterval - timeSinceLastSubmission) / 1000);
-        setError(`Please wait ${waitTime} seconds before submitting another note.`);
+        const waitTime = Math.ceil(
+          (minInterval - timeSinceLastSubmission) / 1000
+        );
+        setError(
+          `Please wait ${waitTime} seconds before submitting another note.`
+        );
         return;
       }
 
@@ -371,7 +383,7 @@ export default function Home() {
       // Enhanced content validation
       const trimmedText = noteText.trim();
       const trimmedAuthor = author.trim();
-      
+
       if (trimmedText.length < 3) {
         setError("Note must be at least 3 characters long.");
         return;
@@ -390,7 +402,7 @@ export default function Home() {
       }
 
       // Check connection
-      if (!isSupabaseConfigured) {
+      if (!isSupabaseConfigured || !supabase) {
         setError(
           "Database is not configured. Please contact the administrator."
         );
@@ -450,14 +462,22 @@ export default function Home() {
       setTimeout(() => setSuccess(""), 3000);
     } catch (error) {
       console.error("❌ Error submitting note:", error);
-      setError(`Failed to post your note: ${error instanceof Error ? error.message : "Unknown error"}`);
+      setError(
+        `Failed to post your note: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleDeleteNote = async (id: string) => {
-    if (!isSupabaseConfigured || connectionStatus !== "connected") {
+    if (
+      !isSupabaseConfigured ||
+      !supabase ||
+      connectionStatus !== "connected"
+    ) {
       setError("Cannot delete note: not connected to database.");
       return;
     }
@@ -475,7 +495,11 @@ export default function Home() {
       console.log("✅ Note deleted successfully");
     } catch (error) {
       console.error("❌ Error deleting note:", error);
-      setError(`Failed to delete note: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      setError(
+        `Failed to delete note: ${
+          error instanceof Error ? error.message : "Unknown error"
+        }`
+      );
     }
   };
 

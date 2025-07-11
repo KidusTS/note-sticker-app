@@ -17,7 +17,7 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Referrer-Policy",
-            value: "strict-origin-when-cross-origin",
+            value: "origin-when-cross-origin",
           },
           {
             key: "Permissions-Policy",
@@ -28,12 +28,24 @@ const nextConfig: NextConfig = {
     ];
   },
   
-  // Disable server-side source maps in production
-  productionBrowserSourceMaps: false,
+  // Ensure environment variables are available during build
+  env: {
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_ANON_KEY: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  },
   
-  // Enable experimental features for better performance
+  // Optimize for production
   experimental: {
-    optimizePackageImports: ['lucide-react'],
+    optimizePackageImports: ['@supabase/supabase-js'],
+  },
+  
+  // Handle build warnings
+  typescript: {
+    ignoreBuildErrors: false,
+  },
+  
+  eslint: {
+    ignoreDuringBuilds: false,
   },
 };
 

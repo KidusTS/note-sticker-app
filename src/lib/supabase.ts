@@ -1,16 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL
-
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
 // Check if Supabase is configured
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey)
-
-
-
-
-
 
 let supabaseClient: ReturnType<typeof createClient> | null = null
 
@@ -24,15 +18,11 @@ if (isSupabaseConfigured) {
         eventsPerSecond: 10, // Limit real-time events
       },
     },
-
-
   })
 }
 
-// Export supabase client or throw error if not configured
-export const supabase = supabaseClient || (() => {
-  throw new Error('Supabase is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment variables.')
-})()
+// Export supabase client - return null if not configured instead of throwing
+export const supabase = supabaseClient
 
 // Database types
 export interface DatabaseNote {
@@ -45,7 +35,6 @@ export interface DatabaseNote {
   color: string
   created_at: string
 }
-
 
 // Type for creating new notes (without id and created at)
 export interface NewNote {
@@ -74,4 +63,12 @@ export const mockSupabase = {
     on: () => ({ on: () => ({ subscribe: () => {} }) })
   }),
   removeChannel: () => {}
+}
+
+// Helper function to get supabase client safely
+export const getSupabaseClient = () => {
+  if (!isSupabaseConfigured) {
+    throw new Error('Supabase is not configured. Please add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY to your environment variables.')
+  }
+  return supabase!
 }
