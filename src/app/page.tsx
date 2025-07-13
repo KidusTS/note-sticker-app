@@ -47,7 +47,13 @@ export default function Home() {
   const containerRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isInitialLoad = useRef(true);
-  const pendingUpdates = useRef<Set<string>>(new Set()); // Track pending position updates
+  const pendingUpdates = useRef<Set<string>>(new Set());
+
+  // Touch handling state
+  const [touchStart, setTouchStart] = useState<{ x: number; y: number } | null>(
+    null
+  );
+  const [isScrolling, setIsScrolling] = useState(false);
 
   // Check if device is mobile
   useEffect(() => {
@@ -60,7 +66,7 @@ export default function Home() {
     return () => window.removeEventListener("resize", checkMobile);
   }, []);
 
-  // Handle container resize - only redistribute if dimensions actually changed significantly
+  // Handle container resize
   useEffect(() => {
     const handleResize = () => {
       if (containerRef.current) {
@@ -73,15 +79,11 @@ export default function Home() {
         if (widthDiff > 50 || heightDiff > 50) {
           setContainerDimensions({ width: newWidth, height: newHeight });
 
-          // Only redistribute if it's a significant change and not initial load
           if (
             notes.length > 0 &&
             !isInitialLoad.current &&
             (widthDiff > 100 || heightDiff > 100)
           ) {
-            // console.log(
-            //   "📐 Container resized significantly, redistributing notes..."
-            // );
             const redistributedNotes = redistributeNotes(
               notes,
               newWidth,
@@ -129,24 +131,77 @@ export default function Home() {
     }
   };
 
-  // Improved note movement handler - now returns a Promise
+  // Touch event handlers
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (!isMobile) return;
+
+    const touch = e.touches[0];
+    setTouchStart({ x: touch.clientX, y: touch.clientY });
+    setIsScrolling(false);
+
+    console.log("Touch start:", { x: touch.clientX, y: touch.clientY });
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (!touchStart || !isMobile) return;
+
+    const touch = e.touches[0];
+    const deltaX = touch.clientX - touchStart.x;
+    const deltaY = touch.clientY - touchStart.y;
+
+    // If we're moving more horizontally than vertically, prevent default
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 10) {
+      e.preventDefault();
+      setIsScrolling(true);
+
+      // Manual scroll
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollLeft =
+          scrollContainerRef.current.scrollLeft - deltaX * 0.5;
+      }
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStart || !isMobile) return;
+
+    const touch = e.changedTouches[0];
+    const deltaX = touch.clientX - touchStart.x;
+    const deltaY = touch.clientY - touchStart.y;
+
+    console.log("Touch end:", { deltaX, deltaY, isScrolling });
+
+    // Only trigger swipe if we haven't been scrolling manually
+    if (
+      !isScrolling &&
+      Math.abs(deltaX) > Math.abs(deltaY) &&
+      Math.abs(deltaX) > 50
+    ) {
+      if (deltaX > 0 && canScrollLeft) {
+        handleScroll("left");
+        console.log("Swipe right - scroll left");
+      } else if (deltaX < 0 && canScrollRight) {
+        handleScroll("right");
+        console.log("Swipe left - scroll right");
+      }
+    }
+
+    setTouchStart(null);
+    setIsScrolling(false);
+  };
+
+  // Improved note movement handler
   const handleNoteMove = useCallback(
     async (id: string, x: number, y: number): Promise<void> => {
-      // console.log("📍 Moving note:", id, "to position:", { x, y });
-
-      // Prevent duplicate updates
       if (pendingUpdates.current.has(id)) {
-        // console.log("⏳ Update already pending for note:", id);
         return;
       }
 
-      // Update local state immediately for smooth UX
       setNotes((prevNotes) => {
         const updatedNotes = prevNotes.map((note) =>
           note.id === id ? { ...note, x, y } : note
         );
 
-        // Update position tracking
         const isMobile = containerDimensions.width < 768;
         const cardWidth = isMobile ? 160 : 200;
         const cardHeight = isMobile ? 120 : 140;
@@ -155,7 +210,6 @@ export default function Home() {
         return updatedNotes;
       });
 
-      // Update database if connected
       if (
         isSupabaseConfigured &&
         supabase &&
@@ -173,23 +227,17 @@ export default function Home() {
             console.error("❌ Error updating note position:", error);
             setError("Failed to save note position. Please try again.");
             setTimeout(() => setError(""), 3000);
-            throw error; // Re-throw to let the component handle the error
-          } else {
-            // console.log("✅ Note position saved successfully");
+            throw error;
           }
         } catch (error) {
           console.error("❌ Error updating note position:", error);
           setError("Failed to save note position.");
           setTimeout(() => setError(""), 3000);
-          throw error; // Re-throw to let the component handle the error
+          throw error;
         } finally {
           pendingUpdates.current.delete(id);
         }
       } else {
-        // console.log(
-        //   "⚠️ Not connected to database, position only saved locally"
-        // );
-        // Simulate a small delay even for local-only updates
         await new Promise((resolve) => setTimeout(resolve, 200));
       }
     },
@@ -219,7 +267,6 @@ export default function Home() {
           setError(`Database connection failed: ${error.message}`);
         } else {
           setConnectionStatus("connected");
-          // console.log("✅ Supabase connected successfully");
         }
       } catch (err) {
         console.error("Connection test failed:", err);
@@ -245,8 +292,6 @@ export default function Home() {
     }
 
     try {
-      // console.log("🔄 Loading notes from Supabase...");
-
       const { data, error } = await supabase
         .from("notes")
         .select("*")
@@ -258,13 +303,9 @@ export default function Home() {
         throw error;
       }
 
-      // console.log("✅ Notes loaded successfully:", data?.length || 0, "notes");
-
-      // Set notes directly without redistribution on initial load
       if (data) {
         setNotes(data);
 
-        // Update position tracking for loaded notes
         if (containerRef.current) {
           const containerWidth = containerRef.current.offsetWidth;
           const containerHeight = containerRef.current.offsetHeight;
@@ -303,8 +344,6 @@ export default function Home() {
     if (connectionStatus === "connected" && supabase) {
       loadNotes();
 
-      // console.log("🔄 Setting up real-time subscription...");
-
       const channel = supabase
         .channel("notes-changes")
         .on(
@@ -315,7 +354,6 @@ export default function Home() {
             table: "notes",
           },
           (payload) => {
-            // console.log("✅ New note received:", payload.new);
             const newNote = payload.new as Note;
 
             setNotes((prev: Note[]) => {
@@ -323,7 +361,6 @@ export default function Home() {
                 return prev;
               }
 
-              // Update position tracking for new note
               const isMobile = containerDimensions.width < 768;
               const cardWidth = isMobile ? 160 : 200;
               const cardHeight = isMobile ? 120 : 140;
@@ -347,14 +384,12 @@ export default function Home() {
             table: "notes",
           },
           (payload) => {
-            // console.log("🗑️ Note deleted:", payload.old);
             const deletedId = payload.old.id;
 
             setNotes((prev: Note[]) =>
               prev.filter((note) => note.id !== deletedId)
             );
 
-            // Remove from position tracking
             removeNotePosition(deletedId);
           }
         )
@@ -366,10 +401,8 @@ export default function Home() {
             table: "notes",
           },
           (payload) => {
-            // console.log("📝 Note updated:", payload.new);
             const updatedNote = payload.new as Note;
 
-            // Only update if this update is not from our own pending update
             if (!pendingUpdates.current.has(updatedNote.id)) {
               setNotes((prev: Note[]) =>
                 prev.map((note) =>
@@ -377,7 +410,6 @@ export default function Home() {
                 )
               );
 
-              // Update position tracking
               const isMobile = containerDimensions.width < 768;
               const cardWidth = isMobile ? 160 : 200;
               const cardHeight = isMobile ? 120 : 140;
@@ -393,7 +425,6 @@ export default function Home() {
         );
 
       return () => {
-        // console.log("🔌 Cleaning up subscription...");
         if (supabase) {
           supabase.removeChannel(channel);
         }
@@ -414,10 +445,9 @@ export default function Home() {
     setIsSubmitting(true);
 
     try {
-      // Rate limiting - prevent spam submissions
       const currentTime = Date.now();
       const timeSinceLastSubmission = currentTime - lastSubmissionTime;
-      const minInterval = 5000; // 5 seconds between submissions
+      const minInterval = 5000;
 
       if (timeSinceLastSubmission < minInterval) {
         const waitTime = Math.ceil(
@@ -429,7 +459,6 @@ export default function Home() {
         return;
       }
 
-      // Validation
       if (!noteText.trim() || !author.trim()) {
         setError("Please fill in both the note and author fields.");
         return;
@@ -447,7 +476,6 @@ export default function Home() {
         return;
       }
 
-      // Enhanced content validation
       const trimmedText = noteText.trim();
       const trimmedAuthor = author.trim();
 
@@ -468,7 +496,6 @@ export default function Home() {
         return;
       }
 
-      // Check connection
       if (!isSupabaseConfigured || !supabase) {
         setError(
           "Database is not configured. Please contact the administrator."
@@ -488,7 +515,6 @@ export default function Home() {
         return;
       }
 
-      // Create note data
       const containerWidth = containerRef.current.offsetWidth;
       const containerHeight = containerRef.current.offsetHeight;
       const position = generateRandomPosition(containerWidth, containerHeight);
@@ -502,9 +528,6 @@ export default function Home() {
         color: getRandomColor(),
       };
 
-      // console.log("📝 Submitting note:", newNote);
-
-      // Insert into Supabase
       const { error } = await supabase
         .from("notes")
         .insert([newNote])
@@ -516,12 +539,7 @@ export default function Home() {
         throw error;
       }
 
-      // console.log("✅ Note inserted successfully:", data);
-
-      // Update last submission time
       setLastSubmissionTime(currentTime);
-
-      // Clear form
       setNoteText("");
       setAuthor("");
       setSuccess("Your note has been shared with everyone! ✨");
@@ -550,16 +568,12 @@ export default function Home() {
     }
 
     try {
-      // console.log("🗑️ Deleting note:", id);
-
       const { error } = await supabase.from("notes").delete().eq("id", id);
 
       if (error) {
         console.error("❌ Error deleting note:", error);
         throw error;
       }
-
-      // console.log("✅ Note deleted successfully");
     } catch (error) {
       console.error("❌ Error deleting note:", error);
       setError(
@@ -654,7 +668,20 @@ export default function Home() {
         </div>
       )}
 
-      {/* Notes Display Area with Horizontal Scroll */}
+      {/* Debug Info for Mobile */}
+      {isMobile && (
+        <div className="bg-blue-900/50 border-b border-blue-700/50 px-4 py-2">
+          <div className="max-w-6xl mx-auto text-center">
+            <p className="text-blue-300 text-xs">
+              Mobile Mode: {isMobile ? "ON" : "OFF"} | Can Scroll Left:{" "}
+              {canScrollLeft ? "YES" : "NO"} | Can Scroll Right:{" "}
+              {canScrollRight ? "YES" : "NO"} | Notes: {notes.length}
+            </p>
+          </div>
+        </div>
+      )}
+
+      {/* Notes Display Area with Touch Support */}
       <div className="relative mx-2 sm:mx-3 md:mx-4 lg:mx-6 my-3 sm:my-4 md:my-6 lg:my-8">
         {/* Scroll Buttons */}
         {(canScrollLeft || canScrollRight) && (
@@ -663,12 +690,12 @@ export default function Home() {
               <button
                 onClick={() => handleScroll("left")}
                 className="absolute left-2 top-1/2 -translate-y-1/2 z-30 
-                           bg-gray-800/90 hover:bg-gray-700 text-white p-2 rounded-full
+                           bg-gray-800/90 hover:bg-gray-700 text-white p-3 rounded-full
                            shadow-lg hover:shadow-xl transition-all duration-200
                            backdrop-blur-sm border border-gray-600"
                 aria-label="Scroll left"
               >
-                <ArrowLeft size={isMobile ? 16 : 20} />
+                <ArrowLeft size={isMobile ? 20 : 24} />
               </button>
             )}
 
@@ -676,23 +703,31 @@ export default function Home() {
               <button
                 onClick={() => handleScroll("right")}
                 className="absolute right-2 top-1/2 -translate-y-1/2 z-30 
-                           bg-gray-800/90 hover:bg-gray-700 text-white p-2 rounded-full
+                           bg-gray-800/90 hover:bg-gray-700 text-white p-3 rounded-full
                            shadow-lg hover:shadow-xl transition-all duration-200
                            backdrop-blur-sm border border-gray-600"
                 aria-label="Scroll right"
               >
-                <ArrowRight size={isMobile ? 16 : 20} />
+                <ArrowRight size={isMobile ? 20 : 24} />
               </button>
             )}
           </>
         )}
 
-        {/* Scrollable Container */}
+        {/* Scrollable Container with Direct Touch Events */}
         <div
           ref={scrollContainerRef}
           className="overflow-x-auto overflow-y-hidden scrollbar-thin scrollbar-thumb-gray-600 
                      scrollbar-track-gray-800/50 hover:scrollbar-thumb-gray-500"
+          style={{
+            WebkitOverflowScrolling: "touch",
+            scrollBehavior: "smooth",
+            overscrollBehaviorX: "contain",
+          }}
           onScroll={checkScrollButtons}
+          onTouchStart={handleTouchStart}
+          onTouchMove={handleTouchMove}
+          onTouchEnd={handleTouchEnd}
         >
           {/* Notes Container */}
           <main
@@ -704,8 +739,8 @@ export default function Home() {
               height: isMobile ? "40vh" : "55vh",
               minWidth: "100%",
               width:
-                notes.length > 10
-                  ? `${Math.max(1200, notes.length * 60)}px`
+                notes.length > 5
+                  ? `${Math.max(1200, notes.length * (isMobile ? 200 : 250))}px`
                   : "100%",
               position: "relative",
             }}
@@ -756,7 +791,22 @@ export default function Home() {
           </main>
         </div>
 
-        {/* Scroll Hint */}
+        {/* Mobile Scroll Hint */}
+        {notes.length > 2 && isMobile && (canScrollLeft || canScrollRight) && (
+          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20">
+            <div
+              className="bg-blue-600/95 text-white text-sm px-4 py-2 rounded-full
+                            backdrop-blur-sm border border-blue-500/50 
+                            shadow-lg flex items-center gap-2 animate-bounce"
+            >
+              <span>👈</span>
+              <span>Swipe or use buttons to scroll</span>
+              <span>👉</span>
+            </div>
+          </div>
+        )}
+
+        {/* Desktop Scroll Hint */}
         {notes.length > 8 && !isMobile && (
           <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20">
             <div
@@ -914,8 +964,9 @@ export default function Home() {
             {isMobile && (
               <div className="mt-4 p-3 bg-gray-700/30 rounded-lg border border-gray-600/50">
                 <p className="text-xs text-gray-400 text-center">
-                  💡 Tip: Tap the move icon (↗️) on notes to reposition them •
-                  Swipe left/right to see more notes
+                  💡 <strong>Mobile Tips:</strong> Swipe left/right in notes
+                  area to scroll • Tap move icon (↗️) to reposition notes • Use
+                  scroll buttons for precise navigation
                 </p>
               </div>
             )}

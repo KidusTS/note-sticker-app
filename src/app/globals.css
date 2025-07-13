@@ -170,118 +170,6 @@
   background: rgb(107 114 128);
 }
 
-/* Note card hover effects */
-.note-card {
-  transition: all 0.2s ease-out;
-}
-
-.note-card:hover {
-  filter: brightness(1.05);
-}
-
-/* Dragging state */
-.note-card.dragging {
-  z-index: 1000;
-  filter: brightness(1.1) drop-shadow(0 20px 25px rgb(0 0 0 / 0.25));
-}
-
-/* Prevent text selection during drag */
-.select-none {
-  -webkit-user-select: none;
-  -moz-user-select: none;
-  -ms-user-select: none;
-  user-select: none;
-}
-
-/* Mobile touch improvements */
-@media (max-width: 768px) {
-  .note-card {
-    touch-action: none;
-  }
-}
-
-/* Focus styles for accessibility */
-button:focus-visible,
-input:focus-visible,
-textarea:focus-visible {
-  outline: 2px solid rgb(147 51 234);
-  outline-offset: 2px;
-}
-
-/* Loading animation */
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-.animate-spin {
-  animation: spin 1s linear infinite;
-}
-
-/* Pulse animation */
-@keyframes pulse {
-  0%, 100% {
-    opacity: 1;
-  }
-  50% {
-    opacity: 0.5;
-  }
-}
-
-.animate-pulse {
-  animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-}
-
-/* Custom animations */
-@keyframes fade-in {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.animate-fade-in {
-  animation: fade-in 0.3s ease-out;
-}
-
-/* Custom scrollbar styles */
-.scrollbar-thin {
-  scrollbar-width: thin;
-}
-
-.scrollbar-thumb-gray-600 {
-  scrollbar-color: rgb(75 85 99) transparent;
-}
-
-.scrollbar-track-gray-800\/50 {
-  scrollbar-color: rgb(75 85 99) rgb(31 41 55 / 0.5);
-}
-
-/* Webkit scrollbar styles */
-.scrollbar-thin::-webkit-scrollbar {
-  height: 6px;
-  width: 6px;
-}
-
-.scrollbar-thin::-webkit-scrollbar-track {
-  background: rgb(31 41 55 / 0.5);
-  border-radius: 3px;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb {
-  background: rgb(75 85 99);
-  border-radius: 3px;
-}
-
-.scrollbar-thin::-webkit-scrollbar-thumb:hover {
-  background: rgb(107 114 128);
-}
-
 /* Note card styles */
 .note-card {
   transition: all 0.2s ease-out;
@@ -361,6 +249,7 @@ textarea:focus-visible {
 .animate-pulse {
   animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
+
 /* Prevent image dragging */
 img {
   -webkit-user-drag: none;
@@ -413,3 +302,230 @@ img {
 .note-card.dragging {
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
 }
+
+/* Enhanced Mobile Scrolling Styles */
+.scrollable-notes {
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x;
+}
+
+/* Hide scrollbar on mobile for cleaner look */
+@media (max-width: 768px) {
+  .scrollable-notes::-webkit-scrollbar,
+  .overflow-x-auto::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .scrollable-notes,
+  .overflow-x-auto {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  /* Improve touch scrolling performance */
+  .overflow-x-auto {
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    overscroll-behavior-x: contain;
+    touch-action: pan-x;
+  }
+}
+
+/* Smooth scroll snap for better UX */
+.scrollable-notes {
+  scroll-snap-type: x proximity;
+}
+
+/* Enhanced scroll button styles */
+.scroll-button {
+  transition: all 0.2s ease-in-out;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.scroll-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.3);
+}
+
+.scroll-button:active {
+  transform: scale(0.95);
+}
+
+/* Mobile scroll button adjustments */
+@media (max-width: 768px) {
+  .scroll-button {
+    padding: 8px;
+    border-radius: 50%;
+  }
+}
+
+/* Scroll hint animations */
+@keyframes gentle-bounce {
+  0%, 100% { 
+    transform: translateY(0px) translateX(-50%); 
+  }
+  50% { 
+    transform: translateY(-3px) translateX(-50%); 
+  }
+}
+
+@keyframes gentle-pulse {
+  0%, 100% { 
+    opacity: 0.8;
+    transform: scale(1);
+  }
+  50% { 
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+.scroll-hint {
+  animation: gentle-bounce 2s infinite ease-in-out;
+}
+
+/* Enhanced mobile scroll hints */
+@media (max-width: 768px) {
+  .scroll-hint {
+    animation: gentle-pulse 2s infinite ease-in-out;
+    font-weight: 500;
+  }
+}
+
+/* Touch feedback for mobile interactions */
+@media (max-width: 768px) {
+  .touch-feedback {
+    -webkit-tap-highlight-color: rgba(147, 51, 234, 0.1);
+    tap-highlight-color: rgba(147, 51, 234, 0.1);
+  }
+  
+  /* Improve button touch targets */
+  button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+  
+  /* Better touch scrolling for the main container */
+  .touch-pan-x {
+    touch-action: pan-x;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior-x: contain;
+  }
+}
+
+/* Smooth transitions for scroll indicators */
+.scroll-indicator {
+  transition: opacity 0.3s ease-in-out, transform 0.3s ease-in-out;
+}
+
+.scroll-indicator.hidden {
+  opacity: 0;
+  transform: scale(0.8);
+}
+
+/* Performance optimizations */
+.will-change-transform {
+  will-change: transform;
+}
+
+.will-change-scroll {
+  will-change: scroll-position;
+}
+
+/* Reduce motion for users who prefer it */
+@media (prefers-reduced-motion: reduce) {
+  .scroll-hint,
+  .animate-pulse,
+  .animate-bounce {
+    animation: none;
+  }
+  
+  .scroll-button {
+    transition: none;
+  }
+  
+  .scroll-button:hover {
+    transform: none;
+  }
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .scroll-button {
+    border: 2px solid currentColor;
+  }
+  
+  .scroll-hint {
+    border: 1px solid currentColor;
+    background: rgba(0, 0, 0, 0.9);
+  }
+}
+
+/* Dark mode specific enhancements */
+@media (prefers-color-scheme: dark) {
+  .scroll-button {
+    background: rgba(31, 41, 55, 0.95);
+    border-color: rgba(75, 85, 99, 0.8);
+  }
+  
+  .scroll-hint {
+    background: rgba(37, 99, 235, 0.95);
+    border-color: rgba(59, 130, 246, 0.8);
+  }
+}
+
+/* Additional mobile optimizations */
+@media (max-width: 768px) {
+  /* Prevent zoom on input focus */
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  textarea,
+  select {
+    font-size: 16px;
+  }
+  
+  /* Better spacing for touch targets */
+  .mobile-touch-target {
+    padding: 12px;
+    margin: 4px;
+  }
+  
+  /* Optimize scroll performance */
+  .mobile-scroll-container {
+    -webkit-overflow-scrolling: touch;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    perspective: 1000px;
+  }
+}
+
+/* Accessibility improvements */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* Focus management for keyboard navigation */
+.focus-visible:focus {
+  outline: 2px solid rgb(147, 51, 234);
+  outline-offset: 2px;
+}
+
+/* Ensure proper contrast for all interactive elements */
+button:focus-visible,
+.scroll-button:focus-visible {
+  outline: 2px solid rgb(147, 51, 234);
+  outline-offset: 2px;
+}
+

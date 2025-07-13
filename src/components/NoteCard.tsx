@@ -370,7 +370,7 @@ const NoteCard = memo(function NoteCard({
         {/* Move Button */}
         <button
           onClick={handleMoveToggle}
-          className={`absolute top-1 left-1 w-6 h-6 rounded-full flex items-center justify-center
+          className={`absolute top-1 left-1 w-4 h-4 rounded-full flex items-center justify-center
                       transition-all duration-200 z-30
                       ${
                         isMoveMode
@@ -389,16 +389,16 @@ const NoteCard = memo(function NoteCard({
           }
         >
           {isMoveMode ? (
-            <Check size={isMobile ? 10 : 12} />
+            <Check size={isMobile ? 6 : 8} />
           ) : (
-            <Move size={isMobile ? 10 : 12} />
+            <Move size={isMobile ? 6 : 8} />
           )}
         </button>
 
         {/* Delete Button */}
         <button
           onClick={handleDelete}
-          className={`absolute -top-2 -right-2 w-6 h-6 bg-red-500 hover:bg-red-600 
+          className={`absolute -top-2 -right-2 w-4 h-4 bg-red-500 hover:bg-red-600 
                       text-white rounded-full flex items-center justify-center
                       shadow-lg hover:shadow-xl transition-all duration-200
                       ${
