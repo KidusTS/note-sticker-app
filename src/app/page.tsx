@@ -139,7 +139,7 @@ export default function Home() {
     setTouchStart({ x: touch.clientX, y: touch.clientY });
     setIsScrolling(false);
 
-    console.log("Touch start:", { x: touch.clientX, y: touch.clientY });
+    // console.log("Touch start:", { x: touch.clientX, y: touch.clientY });
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
@@ -169,7 +169,7 @@ export default function Home() {
     const deltaX = touch.clientX - touchStart.x;
     const deltaY = touch.clientY - touchStart.y;
 
-    console.log("Touch end:", { deltaX, deltaY, isScrolling });
+    // console.log("Touch end:", { deltaX, deltaY, isScrolling });
 
     // Only trigger swipe if we haven't been scrolling manually
     if (
@@ -179,10 +179,10 @@ export default function Home() {
     ) {
       if (deltaX > 0 && canScrollLeft) {
         handleScroll("left");
-        console.log("Swipe right - scroll left");
+        // console.log("Swipe right - scroll left");
       } else if (deltaX < 0 && canScrollRight) {
         handleScroll("right");
-        console.log("Swipe left - scroll right");
+        // console.log("Swipe left - scroll right");
       }
     }
 
@@ -668,7 +668,7 @@ export default function Home() {
         </div>
       )}
 
-      {/* Debug Info for Mobile */}
+      {/* Debug Info for Mobile
       {isMobile && (
         <div className="bg-blue-900/50 border-b border-blue-700/50 px-4 py-2">
           <div className="max-w-6xl mx-auto text-center">
@@ -679,7 +679,7 @@ export default function Home() {
             </p>
           </div>
         </div>
-      )}
+      )} */}
 
       {/* Notes Display Area with Touch Support */}
       <div className="relative mx-2 sm:mx-3 md:mx-4 lg:mx-6 my-3 sm:my-4 md:my-6 lg:my-8">
