@@ -1,40 +1,26 @@
 import type { Metadata, Viewport } from "next";
-import { Inter } from "next/font/google";
+import { preconnect } from "react-dom";
+import "@fontsource-variable/inter";
+import "@fontsource-variable/caveat"; // handwriting for the notes
+import "@fontsource-variable/noto-sans-ethiopic"; // Amharic glyphs (Caveat has none)
 import "./globals.css";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
-const inter = Inter({
-  subsets: ["latin"],
-  variable: "--font-inter",
-  display: "swap",
-});
-
 export const metadata: Metadata = {
-  title: "Note Stickers - Share Your Thoughts",
+  title: "Note Stickers",
   description:
-    "Share your thoughts, quotes, and inspiration with the world! Write a note and watch it appear as a beautiful sticky note on our global wall.",
-  keywords:
-    "notes, sticky notes, thoughts, quotes, inspiration, share, global wall",
-  authors: [{ name: "Note Stickers Team" }],
-  creator: "Note Stickers",
-  publisher: "Note Stickers",
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
-  // Removed viewport and themeColor from here
+    "A shared wall of sticky notes. Pin a thought, a quote or a bit of encouragement and watch it appear for everyone, live.",
+  appleWebApp: { capable: true, title: "Note Stickers" },
+  formatDetection: { email: false, address: false, telephone: false },
 };
 
-// New separate viewport export
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  viewportFit: "cover",
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
-    { media: "(prefers-color-scheme: dark)", color: "#1f2937" },
+    { media: "(prefers-color-scheme: light)", color: "#fffaf2" },
+    { media: "(prefers-color-scheme: dark)", color: "#221c16" },
   ],
 };
 
@@ -43,21 +29,13 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // Open the database connection while the JS bundle is still loading.
+  const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  if (supabaseUrl) preconnect(supabaseUrl);
+
   return (
-    <html lang="en" className={inter.variable}>
-      <head>
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta
-          name="apple-mobile-web-app-status-bar-style"
-          content="black-translucent"
-        />
-        <meta name="apple-mobile-web-app-title" content="Note Stickers" />
-        <meta name="application-name" content="Note Stickers" />
-        <meta name="msapplication-TileColor" content="#1f2937" />
-        {/* Removed duplicate theme-color meta tag since it's now in viewport export */}
-      </head>
-      <body className={`${inter.className} antialiased`}>
+    <html lang="en">
+      <body>
         <ErrorBoundary>{children}</ErrorBoundary>
       </body>
     </html>
