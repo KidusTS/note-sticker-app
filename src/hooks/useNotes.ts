@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { resolveSpot } from "@/lib/board";
 import { isSupabaseConfigured } from "@/lib/supabase";
 import {
   NOTE_LIMIT,
@@ -94,8 +95,13 @@ export function useNotes() {
     return note;
   }, []);
 
-  const moveNote = useCallback(async (id: string, x: number, y: number) => {
+  const moveNote = useCallback(async (id: string, wantedX: number, wantedY: number) => {
     const before = notesRef.current.find((n) => n.id === id);
+    // Dropping onto two stacked notes nudges the note to the nearest legal spot.
+    const others = notesRef.current.filter((n) => n.id !== id);
+    const spot = resolveSpot(others, wantedX, wantedY);
+    const x = Math.round(spot.x);
+    const y = Math.round(spot.y);
     setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, x, y } : n)));
     saving.current.add(id);
     try {

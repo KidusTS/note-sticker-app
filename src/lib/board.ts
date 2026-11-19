@@ -33,39 +33,113 @@ export function randomRotation() {
   return Math.round((Math.random() - 0.5) * 12 * 10) / 10;
 }
 
+type Point = { x: number; y: number };
+
 /**
- * Pick a spot for a new note inside the part of the wall the person is
- * currently looking at, as far away from existing notes as a handful of random
- * candidates allows.
+ * Notes may overlap, but never three deep. Every note is treated as a
+ * NOTE_WIDTH x NOTE_HEIGHT box, so three boxes share a point exactly when
+ * their x positions all lie within a note's width and their y positions
+ * within its height.
  */
-export function pickSpot(
-  existing: ReadonlyArray<{ x: number; y: number }>,
-  view: Rect,
-  candidates = 30,
-) {
-  const minX = view.left + MARGIN;
-  const minY = view.top + MARGIN;
-  const spanX = Math.max(view.width - NOTE_WIDTH - MARGIN * 2, 0);
-  const spanY = Math.max(view.height - NOTE_HEIGHT - MARGIN * 2, 0);
-
-  let best = clampToBoard(minX, minY);
-  let bestScore = -1;
-
-  for (let i = 0; i < candidates; i++) {
-    const spot = clampToBoard(
-      minX + Math.random() * spanX,
-      minY + Math.random() * spanY,
-    );
-    const nearest = existing.reduce(
-      (min, note) =>
-        Math.min(min, (note.x - spot.x) ** 2 + (note.y - spot.y) ** 2),
-      Infinity,
-    );
-    if (nearest > bestScore) {
-      best = spot;
-      bestScore = nearest;
+export function wouldTripleStack(
+  others: ReadonlyArray<Point>,
+  x: number,
+  y: number,
+): boolean {
+  const near = others.filter(
+    (o) => Math.abs(o.x - x) < NOTE_WIDTH && Math.abs(o.y - y) < NOTE_HEIGHT,
+  );
+  for (let i = 0; i < near.length; i++) {
+    for (let j = i + 1; j < near.length; j++) {
+      const xs = [x, near[i].x, near[j].x];
+      const ys = [y, near[i].y, near[j].y];
+      if (
+        Math.max(...xs) - Math.min(...xs) < NOTE_WIDTH &&
+        Math.max(...ys) - Math.min(...ys) < NOTE_HEIGHT
+      ) {
+        return true;
+      }
     }
   }
+  return false;
+}
 
-  return { x: Math.round(best.x), y: Math.round(best.y) };
+/** The requested spot if it respects the stacking limit, else the closest one that does. */
+export function resolveSpot(
+  others: ReadonlyArray<Point>,
+  x: number,
+  y: number,
+): Point {
+  const wanted = clampToBoard(x, y);
+  if (!wouldTripleStack(others, wanted.x, wanted.y)) return wanted;
+
+  const STEP = 24;
+  const DIRECTIONS = 16;
+  for (let radius = STEP; radius <= 900; radius += STEP) {
+    for (let k = 0; k < DIRECTIONS; k++) {
+      const angle = (k / DIRECTIONS) * Math.PI * 2;
+      const spot = clampToBoard(
+        wanted.x + Math.cos(angle) * radius,
+        wanted.y + Math.sin(angle) * radius,
+      );
+      if (!wouldTripleStack(others, spot.x, spot.y)) return spot;
+    }
+  }
+  return wanted; // a completely full wall; nothing better exists
+}
+
+/**
+ * Pick a spot for a new note inside the part of the wall the person is
+ * currently looking at, as far from existing notes as a handful of random
+ * candidates allows, never making a three-deep stack. If the view is too
+ * crowded it falls back to the rest of the wall.
+ */
+export function pickSpot(
+  existing: ReadonlyArray<Point>,
+  view: Rect,
+  candidates = 30,
+): Point {
+  const wholeBoard: Rect = {
+    left: 0,
+    top: 0,
+    width: BOARD_WIDTH,
+    height: BOARD_HEIGHT,
+  };
+
+  // The whole wall is a long shot when the view is full, so try harder there.
+  for (const [area, tries] of [
+    [view, candidates],
+    [wholeBoard, candidates * 10],
+  ] as const) {
+    const minX = area.left + MARGIN;
+    const minY = area.top + MARGIN;
+    const spanX = Math.max(area.width - NOTE_WIDTH - MARGIN * 2, 0);
+    const spanY = Math.max(area.height - NOTE_HEIGHT - MARGIN * 2, 0);
+
+    let best: Point | null = null;
+    let bestScore = -1;
+
+    for (let i = 0; i < tries; i++) {
+      const spot = clampToBoard(
+        minX + Math.random() * spanX,
+        minY + Math.random() * spanY,
+      );
+      if (wouldTripleStack(existing, spot.x, spot.y)) continue;
+
+      const nearest = existing.reduce(
+        (min, note) =>
+          Math.min(min, (note.x - spot.x) ** 2 + (note.y - spot.y) ** 2),
+        Infinity,
+      );
+      if (nearest > bestScore) {
+        best = spot;
+        bestScore = nearest;
+      }
+    }
+
+    if (best) return { x: Math.round(best.x), y: Math.round(best.y) };
+  }
+
+  const fallback = resolveSpot(existing, view.left + MARGIN, view.top + MARGIN);
+  return { x: Math.round(fallback.x), y: Math.round(fallback.y) };
 }
