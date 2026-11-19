@@ -1,65 +1,45 @@
 "use client";
 
-import { Component, ReactNode } from "react";
-import { AlertCircle, RefreshCw } from "lucide-react";
-
-interface Props {
-  children: ReactNode;
-}
+import { Component, type ErrorInfo, type ReactNode } from "react";
+import { RefreshCw } from "lucide-react";
 
 interface State {
   hasError: boolean;
-  error?: Error;
 }
 
-export default class ErrorBoundary extends Component<Props, State> {
-  constructor(props: Props) {
-    super(props);
-    this.state = { hasError: false };
+export default class ErrorBoundary extends Component<
+  { children: ReactNode },
+  State
+> {
+  state: State = { hasError: false };
+
+  static getDerivedStateFromError(): State {
+    return { hasError: true };
   }
 
-  static getDerivedStateFromError(error: Error): State {
-    return { hasError: true, error };
-  }
-
-  componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    console.error("Error caught by boundary:", error, errorInfo);
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.error("Unhandled error:", error, info);
   }
 
   render() {
-    if (this.state.hasError) {
-      return (
-        <div
-          className="min-h-screen bg-gradient-to-br from-gray-900 via-slate-800 to-gray-900 
-                        flex items-center justify-center p-4"
-        >
-          <div
-            className="bg-gray-800/90 backdrop-blur-sm rounded-xl border border-gray-700 
-                          p-6 sm:p-8 max-w-md w-full text-center"
-          >
-            <AlertCircle className="mx-auto mb-4 text-red-400" size={48} />
-            <h2 className="text-xl sm:text-2xl font-bold text-white mb-2">
-              Oops! Something went wrong
-            </h2>
-            <p className="text-gray-300 mb-6 text-sm sm:text-base">
-              We encountered an unexpected error. Please try refreshing the
-              page.
-            </p>
-            <button
-              onClick={() => window.location.reload()}
-              className="inline-flex items-center gap-2 px-6 py-3 
-                         bg-gradient-to-r from-purple-600 to-pink-600 text-white 
-                         font-medium rounded-lg hover:from-purple-700 hover:to-pink-700 
-                         transition-all duration-200 shadow-lg hover:shadow-xl"
-            >
-              <RefreshCw size={16} />
-              Refresh Page
-            </button>
-          </div>
-        </div>
-      );
-    }
+    if (!this.state.hasError) return this.props.children;
 
-    return this.props.children;
+    return (
+      <div className="grid min-h-dvh place-items-center p-6">
+        <div className="max-w-sm text-center">
+          <p className="font-hand text-4xl">Oops, the wall fell down.</p>
+          <p className="mt-2 text-ink-soft">
+            Something unexpected went wrong. Reloading usually puts it back up.
+          </p>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 inline-flex h-11 items-center gap-2 rounded-full bg-accent px-6 font-semibold text-accent-ink hover:brightness-110"
+          >
+            <RefreshCw size={16} aria-hidden="true" />
+            Reload
+          </button>
+        </div>
+      </div>
+    );
   }
 }
